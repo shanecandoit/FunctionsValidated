@@ -1,6 +1,17 @@
 
-# Ignore all files in the .venv directory
-.venv/
-
-# Ignore pycache dirs
-__pycache__
+# Added common Python gitignore patterns
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.env
+.venv
+env/
+venv/
+ENV/
+*.db
+.pytest_cache/
+.coverage
+htmlcov/
+.idea/
+.vscode/

@@ -24,12 +24,6 @@ def create_function(*, session: Session = Depends(get_session), function: Functi
                 detail=f"Output object schema with id {output_obj_id} not found"
             )
     
-    # Basic implementation validation
-    if not function.implementation.strip():
-        raise HTTPException(
-            status_code=400,
-            detail="Implementation cannot be empty"
-        )
     
     session.add(function)
     session.commit()
@@ -42,11 +36,8 @@ def read_functions(
     session: Session = Depends(get_session),
     skip: int = 0,
     limit: int = 100,
-    implementation_type: Optional[str] = None
 ):
     query = select(FunctionDef)
-    if implementation_type:
-        query = query.where(FunctionDef.implementation_type == implementation_type)
     functions = session.exec(query.offset(skip).limit(limit)).all()
     return functions
 
@@ -83,13 +74,6 @@ def update_function(
                 detail=f"Output object schema with id {output_obj_id} not found"
             )
     
-    # Basic implementation validation
-    if not function_update.implementation.strip():
-        raise HTTPException(
-            status_code=400,
-            detail="Implementation cannot be empty"
-        )
-    
     # Update function attributes
     function_data = function_update.dict(exclude_unset=True)
     for key, value in function_data.items():
@@ -117,17 +101,19 @@ def validate_function(*, session: Session = Depends(get_session), function_id: i
     if not function:
         raise HTTPException(status_code=404, detail="Function not found")
     
-    # Here you would implement validation logic specific to the implementation_type
-    # For example, for Python functions:
-    # 1. Check if the code is syntactically valid
-    # 2. Verify that the function accepts the correct input parameters
-    # 3. Verify that the function returns data matching the output schema
+    # A Function needs a name
+    if not function.name:
+        raise HTTPException(status_code=400, detail="Function name is required")
     
-    # This is a placeholder implementation
-    try:
-        if function.implementation_type == "python":
-            # Basic syntax check
-            compile(function.implementation, "<string>", "exec")
-            return {"valid": True, "message": "Function implementation is syntactically valid"}
-    except Exception as e:
-        return {"valid": False, "message": str(e)}
+    # A Function needs a description
+    if not function.description:
+        raise HTTPException(status_code=400, detail="Function description is required")
+    
+    # A Function needs at least one input schema
+    if not function.input_schemas:
+        raise HTTPException(status_code=400, detail="Function needs at least one input schema")
+    
+    # A Function needs at least one output schema
+    if not function.output_schemas:
+        raise HTTPException(status_code=400, detail="Function needs at least one output schema")
+    

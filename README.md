@@ -6,12 +6,13 @@ A Python REST API project with template forms and default views.
 There are for 4 main components.
 
 There will be Object (or Schema) this will be the attributes and the attribute type.
+This is like the ".h" for c++.
 
-There will be Tables (or Samples) this will be rows of data, where the columns are the attributes and this will be a table all of a single Object.
+There will be Tables (or Samples) this will be rows of data, where the columns are the attributes and this will be a table all of a single Object. This will be a collection of instances of an object.
 
 There will be Functions (or Processes) this will have a name, summary, and one or more input tables, and one or more output tables. This just defines the input and output objects really.
 
-There will be TestCases (or Examples) this will have a name, summary and the same as a function but the tables will have sample data, rows. A TestCase is saying that "when this function is called with these input tables, it *should* produce these output tables".
+There will be TestCases (or Examples) this will have a name, summary and the same as a function but the tables will have sample data, rows. A TestCase is saying that "when this function is called with these input tables, it *should* produce these output tables". TestCases will NOT have code associated.
 
 How to use this API?
 
@@ -53,3 +54,11 @@ You can also use the API documentation by visiting http://localhost:8000/docs.
 How to stop the API?
 
 You can stop the API by pressing Ctrl+C in the terminal.
+
+What is the test code coverage?
+
+You can run the test code coverage by running the following command:
+
+```bash
+python -m pytest --cov=app tests/
+```

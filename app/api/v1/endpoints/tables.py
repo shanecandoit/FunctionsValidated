@@ -4,10 +4,12 @@ from typing import List, Dict, Any, Optional
 from ....models.table_data import TableData
 from ....models.object_schema import ObjectSchema
 from ....core.database import get_session
-from pydantic import ValidationError
 import json
 
 router = APIRouter(prefix="/tables", tags=["tables"])
+
+class ValidationError(Exception):
+    pass
 
 @router.post("/", response_model=TableData)
 def create_table(*, session: Session = Depends(get_session), table: TableData):
@@ -19,8 +21,12 @@ def create_table(*, session: Session = Depends(get_session), table: TableData):
     # Validate data against the object schema
     try:
         for row in table.data:
+            # Check for extra fields not in schema
+            extra_fields = set(row.keys()) - set(object_schema.attributes.keys())
+            if extra_fields:
+                raise ValidationError(f"Extra fields found in data: {extra_fields}")
+            
             # Here you would validate each row against the object schema
-            # This is a basic implementation - you might want to add more validation
             for field, value in row.items():
                 if field not in object_schema.attributes:
                     raise ValidationError(f"Field {field} not in schema attributes")
@@ -67,6 +73,11 @@ def update_table(*, session: Session = Depends(get_session), table_id: int, tabl
     # Validate data against the object schema
     try:
         for row in table_update.data:
+            # Check for extra fields not in schema
+            extra_fields = set(row.keys()) - set(object_schema.attributes.keys())
+            if extra_fields:
+                raise ValidationError(f"Extra fields found in data: {extra_fields}")
+            
             for field, value in row.items():
                 if field not in object_schema.attributes:
                     raise ValidationError(f"Field {field} not in schema attributes")

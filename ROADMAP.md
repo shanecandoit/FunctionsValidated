@@ -7,7 +7,7 @@
     - Objects (Schemas): Definitions of data structures (attributes and types).
     - Tables (Samples): Collections of data rows conforming to a specific Object schema.
     - Functions (Processes): Definitions of operations with named input/output table schemas.
-    - TestCases (Examples): Concrete examples of Function execution, linking specific input data Tables to expected output data Tables for a given Function.
+    - TestCases (Examples): Concrete examples of expected behavior, linking specific input data Tables to expected output data Tables for a given Function. No associated code, more a requirement.
 - Provide automatic API documentation (Swagger UI / ReDoc).
 - Implement basic server-rendered HTML views (using Jinja2 templates) to list and view details of these resources.
 - Include simple HTML forms for creating/editing Objects, Functions, and TestCases (potentially simplified views for Tables due to data size).
@@ -41,7 +41,6 @@ schema-process-api/
 │   │   └── database.py      # Database session setup, engine
 │   ├── models/              # Database models (SQLModel/SQLAlchemy)
 │   │   ├── __init__.py
-│   │   ├── base.py          # Base model class (if needed)
 │   │   ├── object_schema.py
 │   │   ├── table_data.py
 │   │   ├── function_def.py

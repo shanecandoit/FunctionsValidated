@@ -22,12 +22,7 @@ class TestCase(SQLModel, table=True):
     # Test parameters and configuration
     parameters: Dict[str, Any] = Field(default_factory=dict, sa_type=JSON)
     
-    # Test results (updated when test is run)
-    last_run: Optional[datetime] = None
-    last_status: Optional[str] = None  # "passed", "failed", "error"
-    last_error: Optional[str] = None
-    actual_output_tables: Dict[str, int] = Field(default_factory=dict, sa_type=JSON)  # Map of output name to actual result table_id
-    
+    # Timestamps
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     

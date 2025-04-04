@@ -15,11 +15,7 @@ class FunctionDef(SQLModel, table=True):
     input_schemas: Dict[str, int] = Field(default_factory=dict, sa_type=JSON)  # Map of input name to object_id
     output_schemas: Dict[str, int] = Field(default_factory=dict, sa_type=JSON)  # Map of output name to object_id
     
-    # Function implementation details
-    implementation_type: str = Field(default="python")  # e.g., "python", "sql", "external"
-    implementation: str  # The actual implementation code
-    parameters: Dict[str, Any] = Field(default_factory=dict, sa_type=JSON)  # Additional parameters/configuration
-    
+    # Timestamps
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
     
@@ -28,10 +24,7 @@ class FunctionDef(SQLModel, table=True):
             "example": {
                 "name": "data_transform",
                 "description": "Transforms input data according to specified rules",
-                "input_schemas": {"source": 1},  # object_id 1
-                "output_schemas": {"result": 2},  # object_id 2
-                "implementation_type": "python",
-                "implementation": "def process(source):\n    return {'result': transform(source)}",
-                "parameters": {"validate_output": True}
+                "input_schemas": {"source": 1},
+                "output_schemas": {"result": 2},
             }
         }

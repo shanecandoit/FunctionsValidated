@@ -11,88 +11,6 @@ from ....core.database import get_session
 
 router = APIRouter(prefix="/test-cases", tags=["test-cases"])
 
-async def run_test_case(test_case_id: int, session: Session):
-    """Background task to run a test case"""
-    test_case = session.get(TestCase, test_case_id)
-    if not test_case:
-        return
-    
-    try:
-        # Get the function
-        function = session.get(FunctionDef, test_case.function_id)
-        if not function:
-            raise ValueError("Function not found")
-        
-        # Get input tables
-        input_data = {}
-        for input_name, table_id in test_case.input_tables.items():
-            table = session.get(TableData, table_id)
-            if not table:
-                raise ValueError(f"Input table {input_name} (id: {table_id}) not found")
-            input_data[input_name] = table.data
-        
-        # Execute function (placeholder - actual implementation would depend on function type)
-        if function.implementation_type == "python":
-            # Basic example - in practice, you'd want to run this in a sandbox
-            local_vars = {}
-            exec(function.implementation, {}, local_vars)
-            if "process" not in local_vars:
-                raise ValueError("Function must define a 'process' function")
-            
-            result = local_vars["process"](**input_data)
-            
-            # Validate and store results
-            if not isinstance(result, dict):
-                raise ValueError("Function must return a dictionary of named outputs")
-            
-            # Create result tables and store references
-            actual_outputs = {}
-            for output_name, output_data in result.items():
-                if output_name not in function.output_schemas:
-                    raise ValueError(f"Unexpected output: {output_name}")
-                
-                # Create a new table for the actual output
-                output_table = TableData(
-                    name=f"test_{test_case.id}_{output_name}_result",
-                    object_id=function.output_schemas[output_name],
-                    data=output_data
-                )
-                session.add(output_table)
-                session.flush()  # Get the ID without committing
-                actual_outputs[output_name] = output_table.id
-            
-            # Update test case with results
-            test_case.last_run = datetime.utcnow()
-            test_case.actual_output_tables = actual_outputs
-            
-            # Compare with expected outputs
-            all_passed = True
-            for output_name, expected_table_id in test_case.expected_output_tables.items():
-                if output_name not in result:
-                    raise ValueError(f"Missing expected output: {output_name}")
-                
-                expected_table = session.get(TableData, expected_table_id)
-                if not expected_table:
-                    raise ValueError(f"Expected output table {output_name} (id: {expected_table_id}) not found")
-                
-                # Basic comparison - you might want more sophisticated comparison logic
-                if result[output_name] != expected_table.data:
-                    all_passed = False
-                    break
-            
-            test_case.last_status = "passed" if all_passed else "failed"
-            test_case.last_error = None if all_passed else "Output does not match expected results"
-            
-        else:
-            raise ValueError(f"Unsupported function type: {function.implementation_type}")
-        
-    except Exception as e:
-        test_case.last_run = datetime.utcnow()
-        test_case.last_status = "error"
-        test_case.last_error = str(e)
-    
-    session.add(test_case)
-    session.commit()
 
 @router.post("/", response_model=TestCase)
 def create_test_case(*, session: Session = Depends(get_session), test_case: TestCase):
@@ -192,12 +110,6 @@ def delete_test_case(*, session: Session = Depends(get_session), test_case_id: i
     test_case = session.get(TestCase, test_case_id)
     if not test_case:
         raise HTTPException(status_code=404, detail="Test case not found")
-    
-    # Clean up actual output tables if they exist
-    for table_id in test_case.actual_output_tables.values():
-        output_table = session.get(TableData, table_id)
-        if output_table:
-            session.delete(output_table)
     
     session.delete(test_case)
     session.commit()
