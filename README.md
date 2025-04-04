@@ -1,64 +1,115 @@
 
-# Objects - Tables - Functions - Tests
+# FunctionsValidated API: ObjectSchemas, DataSamples, FunctionSpecs, ValidationSets, and CodeSubmissions
 
-A Python REST API project with template forms and default views.
+A Python REST API project for managing data schemas, sample data sets, function specifications, validation examples, and code submissions. Includes basic template forms and default views for web interaction.
 
-There are for 4 main components.
+This project facilitates a workflow where function requirements (specifications and validation examples) can be defined separately from their implementations.
 
-There will be Object (or Schema) this will be the attributes and the attribute type.
-This is like the ".h" for c++.
+## Core Components
 
-There will be Tables (or Samples) this will be rows of data, where the columns are the attributes and this will be a table all of a single Object. This will be a collection of instances of an object.
+This API manages five core components related to defining, testing, and implementing data processing functions:
 
-There will be Functions (or Processes) this will have a name, summary, and one or more input tables, and one or more output tables. This just defines the input and output objects really.
+1. ObjectSchema:
+    * Defines the structure (attributes and their data types) for a type of data.
+    * Analogous to a C++ header (`.h`) or an interface, it specifies *what* data looks like.
+    * Example: An `ObjectSchema` named "User" might define attributes like `user_id` (integer), `username` (string), `signup_date` (datetime).
 
-There will be TestCases (or Examples) this will have a name, summary and the same as a function but the tables will have sample data, rows. A TestCase is saying that "when this function is called with these input tables, it *should* produce these output tables". TestCases will NOT have code associated.
+2. DataSample:
+    * Contains concrete rows of data where columns conform to a specific `ObjectSchema`.
+    * Represents a collection of instances or a sample dataset based on a defined schema.
+    * Example: A `DataSample` conforming to the "User" `ObjectSchema` might contain rows like `{'user_id': 101, 'username': 'alice', 'signup_date': '2023-10-26T10:00:00Z'}`.
 
-How to use this API?
+3. FunctionSpec (Function Specification):
+    * Defines the *specification* or *signature* of a data processing function.
+    * It includes a name, summary, and specifies the required input `ObjectSchema`(s) and the expected output `ObjectSchema`(s).
+    * It describes *what* a function should do in terms of data transformation types, but contains no implementation code.
+    * Typically created by analysts, QAs, or system designers.
+    * Example: A `FunctionSpec` named "AnonymizeUserData" might take an input `ObjectSchema` "RawUser" and produce an output `ObjectSchema` "AnonymizedUser".
 
-You can use the API by making HTTP requests to the endpoints defined in the API.
+4. ValidationSet:
+    * Provides concrete examples to validate implementations of a `FunctionSpec`.
+    * It links specific input `DataSample`(s) (with real data conforming to the FunctionSpec's input schemas) to the expected output `DataSample`(s) (also with real data conforming to the FunctionSpec's output schemas).
+    * It asserts: "When the function specified by `FunctionSpec F` is executed with these input `DataSample`s, it *should* produce these output `DataSample`s".
+    * Contains no implementation code.
+    * Typically created alongside the `FunctionSpec` to define acceptance criteria.
 
-The API has the following endpoints:
+5. CodeSubmission:
+    * Contains the actual implementation code (or reference to it) provided by a developer attempting to fulfill a `FunctionSpec`.
+    * Each submission is linked to one `FunctionSpec`.
+    * It can be evaluated against the `ValidationSet`(s) associated with that specification to determine correctness (e.g., which `ValidationSet`s pass or fail for this specific code).
 
-/api/v1/objects: GET, POST, PUT, DELETE
-/api/v1/tables: GET, POST, PUT, DELETE
-/api/v1/functions: GET, POST, PUT, DELETE
-/api/v1/test_cases: GET, POST, PUT, DELETE
+## How to Use This API?
 
-You can use the endpoints to create, read, update, and delete objects, tables, functions, and test cases.
+You can interact with the API by making standard HTTP requests (GET, POST, PUT, DELETE) to the defined endpoints.
 
-How to start the API?
+The primary API endpoints are expected to be structured like this (under `/api/v1/`):
 
-You can start the API by running the following command:
+* `/objectschemas/`: Manage `ObjectSchema` resources.
+* `/datasamples/`: Manage `DataSample` resources.
+* `/functionspecs/`: Manage `FunctionSpec` resources.
+* `/validationsets/`: Manage `ValidationSet` resources (often linked to a `FunctionSpec`).
+* `/codesubmissions/`: Manage `CodeSubmission` resources (linked to a `FunctionSpec`).
+
+You can use these endpoints to create, read, update, and delete the respective resources. Detailed API documentation is available automatically.
+
+## How to Start the API?
+
+Prerequisites: Python 3.9+, pip
+
+1. Clone the repository:
+
+    ```bash
+    git clone <your-repo-url>
+    cd <your-repo-directory>
+    ```
+
+2. Create and activate a virtual environment (recommended):
+
+    ```bash
+    python -m venv venv
+    source venv/bin/activate  # On Windows use `venv\Scripts\activate`
+    ```
+
+3. Install dependencies:
+
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+4. Configure environment variables:
+    * Copy `.env.example` to `.env`.
+    * Edit `.env` to set your `DATABASE_URL` and any other required settings.
+5. Run database migrations (if applicable):
+
+    ```bash
+    # Example if using Alembic:
+    # alembic upgrade head
+    ```
+
+6. Start the development server:
+
+    ```bash
+    uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+    ```
+
+    * `--reload`: Automatically restarts the server when code changes.
+    * `--host 0.0.0.0`: Makes the server accessible on your local network.
+    * `--port 8000`: Specifies the port (default is often 8000).
+
+The API should now be running on `http://localhost:8000` (or `http://<your-local-ip>:8000`).
+
+## API Documentation
+
+Once the API is running, you can access the interactive API documentation (Swagger UI) at:
+`http://localhost:8000/docs`
+
+## How to Stop the API?
+
+Press `Ctrl+C` in the terminal where the `uvicorn` process is running.
+
+## How to Run Tests?
+
+You can run the automated tests and check code coverage using `pytest`:
 
 ```bash
-python -m app.main
-```
-
-For development, you can use the following command:
-
-```bash
-python -m app.main --reload
-```
-
-or 
-
-```bash
-uvicorn app.main:app --reload
-```
-
-This will start the API on http://localhost:8000.
-
-You can also use the API documentation by visiting http://localhost:8000/docs.
-
-How to stop the API?
-
-You can stop the API by pressing Ctrl+C in the terminal.
-
-What is the test code coverage?
-
-You can run the test code coverage by running the following command:
-
-```bash
-python -m pytest --cov=app tests/
-```
+pytest --cov=app tests/

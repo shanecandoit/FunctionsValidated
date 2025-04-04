@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Test Case</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <h1>Create New Test Case</h1>
+    <a href="/" style="color: #00aaff; display: block; margin-bottom: 15px;">&larr; Back to Home</a>
+
+    <form id="create-test-case-form">
+        <div>
+            <label for="name">Test Case Name:</label>
+            <input type="text" id="name" name="name" required>
+        </div>
+        <div>
+            <label for="description">Description:</label>
+            <textarea id="description" name="description"></textarea>
+        </div>
+        <div>
+            <label for="function_id">Function Under Test:</label>
+            <select id="function_id" name="function_id" required>
+                <option value="">-- Select a Function --</option>
+                <!-- Function options will be populated by the backend -->
+                {% for func in functions %}
+                <option value="{{ func.id }}">{{ func.name }} (ID: {{ func.id }})</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label for="input_tables">Input Tables (JSON format: {"input_name": table_id, ...}):</label>
+            <textarea id="input_tables" name="input_tables" rows="5" placeholder='{"source_data": 1, "config": 3}' required></textarea>
+            <small>Map input names defined in the function to existing Table IDs.</small>
+        </div>
+        <div>
+            <label for="expected_output_tables">Expected Output Tables (JSON format: {"output_name": table_id, ...}):</label>
+            <textarea id="expected_output_tables" name="expected_output_tables" rows="5" placeholder='{"results": 2}' required></textarea>
+            <small>Map output names defined in the function to existing Table IDs containing expected results.</small>
+        </div>
+         <div>
+            <label for="parameters">Parameters (JSON format: {"param_name": value, ...}):</label>
+            <textarea id="parameters" name="parameters" rows="3" placeholder='{"timeout": 60, "mode": "strict"}'></textarea>
+            <small>Optional test-specific parameters as a JSON object.</small>
+        </div>
+        <button type="submit">Create Test Case</button>
+    </form>
+    <div id="response-message" style="margin-top: 15px;"></div>
+
+    <script>
+        document.getElementById('create-test-case-form').addEventListener('submit', async function(event) {
+            event.preventDefault();
+
+            const form = event.target;
+            const formData = new FormData(form);
+            const responseMessageDiv = document.getElementById('response-message');
+            responseMessageDiv.textContent = 'Creating...';
+            responseMessageDiv.style.color = 'black';
+
+            let inputTablesValue, outputTablesValue, parametersValue;
+
+            try {
+                inputTablesValue = JSON.parse(formData.get('input_tables'));
+                if (typeof inputTablesValue !== 'object' || inputTablesValue === null || Array.isArray(inputTablesValue)) {
+                    throw new Error("Input Tables must be a JSON object (key-value map).");
+                }
+            } catch (error) {
+                responseMessageDiv.textContent = 'Error: Invalid JSON format for Input Tables. ' + error.message;
+                responseMessageDiv.style.color = 'red';
+                return;
+            }
+
+            try {
+                outputTablesValue = JSON.parse(formData.get('expected_output_tables'));
+                 if (typeof outputTablesValue !== 'object' || outputTablesValue === null || Array.isArray(outputTablesValue)) {
+                    throw new Error("Expected Output Tables must be a JSON object (key-value map).");
+                }
+            } catch (error) {
+                responseMessageDiv.textContent = 'Error: Invalid JSON format for Expected Output Tables. ' + error.message;
+                responseMessageDiv.style.color = 'red';
+                return;
+            }
+
+             try {
+                const paramsStr = formData.get('parameters');
+                parametersValue = paramsStr ? JSON.parse(paramsStr) : {}; // Default to empty object if blank
+                 if (typeof parametersValue !== 'object' || parametersValue === null || Array.isArray(parametersValue)) {
+                    throw new Error("Parameters must be a JSON object (key-value map).");
+                }
+            } catch (error) {
+                responseMessageDiv.textContent = 'Error: Invalid JSON format for Parameters. ' + error.message;
+                responseMessageDiv.style.color = 'red';
+                return;
+            }
+
+
+            const payload = {
+                name: formData.get('name'),
+                description: formData.get('description'),
+                function_id: parseInt(formData.get('function_id'), 10),
+                input_tables: inputTablesValue,
+                expected_output_tables: outputTablesValue,
+                parameters: parametersValue
+            };
+
+            try {
+                // Note: Adjust the endpoint URL if your router prefix is different
+                const response = await fetch('/api/v1/test-cases/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload),
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    responseMessageDiv.textContent = `Test Case "${result.name}" created successfully! (ID: ${result.id})`;
+                    responseMessageDiv.style.color = 'green';
+                    form.reset(); // Clear the form
+                } else {
+                    responseMessageDiv.textContent = `Error: ${result.detail || response.statusText}`;
+                    responseMessageDiv.style.color = 'red';
+                }
+            } catch (error) {
+                console.error('Error submitting form:', error);
+                responseMessageDiv.textContent = 'An error occurred while submitting the form.';
+                responseMessageDiv.style.color = 'red';
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Table</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <h1>Create New Table</h1>
+    <a href="/" style="color: #00aaff; display: block; margin-bottom: 15px;">&larr; Back to Home</a>
+
+    <form id="create-table-form">
+        <div>
+            <label for="name">Table Name:</label>
+            <input type="text" id="name" name="name" required>
+        </div>
+        <div>
+            <label for="description">Description:</label>
+            <textarea id="description" name="description"></textarea>
+        </div>
+        <div>
+            <label for="object_id">Associated Object:</label>
+            <select id="object_id" name="object_id" required>
+                <option value="">-- Select an Object --</option>
+                <!-- Object options will be populated by the backend -->
+                {% for obj in objects %}
+                <option value="{{ obj.id }}">{{ obj.name }} (ID: {{ obj.id }})</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label for="data">Row Data (Paste JSON Array or CSV):</label>
+            <textarea id="data" name="data" rows="10" placeholder='Paste JSON like [{"col1": "val1"}, {"col1": "val2"}]\nOR\nPaste CSV like:\ncol1,col2\nval1,1\nval2,2' required></textarea>
+            <small>Enter data as a valid JSON array or as CSV text (first row treated as headers).</small>
+        </div>
+        <button type="submit">Create Table</button>
+    </form>
+    <div id="response-message" style="margin-top: 15px;"></div>
+
+    <script>
+        document.getElementById('create-table-form').addEventListener('submit', async function(event) {
+            event.preventDefault();
+
+            const form = event.target;
+            const formData = new FormData(form);
+            const responseMessageDiv = document.getElementById('response-message');
+            responseMessageDiv.textContent = 'Creating...';
+            responseMessageDiv.style.color = 'black';
+
+            let dataValue;
+            const rawData = formData.get('data').trim();
+
+            try {
+                // First, try parsing as JSON
+                dataValue = JSON.parse(rawData);
+                if (!Array.isArray(dataValue)) {
+                    // If it parsed but isn't an array, it's invalid for our purpose
+                     throw new Error("Input is valid JSON, but not a JSON array.");
+                }
+                 console.log("Parsed as JSON array.");
+            } catch (jsonError) {
+                // If JSON parsing failed, try parsing as CSV
+                console.log("JSON parse failed, attempting CSV parse...");
+                try {
+                    dataValue = csvToJson(rawData);
+                     if (!Array.isArray(dataValue)) { // csvToJson should always return array or throw
+                        throw new Error("CSV parsing resulted in non-array data.");
+                    }
+                    console.log("Parsed as CSV.");
+                } catch (csvError) {
+                    responseMessageDiv.textContent = `Error: Could not parse data as JSON or CSV. JSON Error: ${jsonError.message}. CSV Error: ${csvError.message}`;
+                    responseMessageDiv.style.color = 'red';
+                    return;
+                }
+            }
+
+            const payload = {
+                name: formData.get('name'),
+                description: formData.get('description'),
+                object_id: parseInt(formData.get('object_id'), 10), // Ensure object_id is an integer
+                data: dataValue
+            };
+
+            try {
+                const response = await fetch('/api/v1/tables/', { // Target the API endpoint
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload),
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    responseMessageDiv.textContent = `Table "${result.name}" created successfully! (ID: ${result.id})`;
+                    responseMessageDiv.style.color = 'green';
+                    form.reset(); // Clear the form
+                } else {
+                    responseMessageDiv.textContent = `Error: ${result.detail || response.statusText}`;
+                    responseMessageDiv.style.color = 'red';
+                }
+            } catch (error) {
+                console.error('Error submitting form:', error);
+                responseMessageDiv.textContent = 'An error occurred while submitting the form.';
+                responseMessageDiv.style.color = 'red';
+            }
+        });
+
+        // Simple CSV to JSON Array converter
+        // Assumes first row is header
+        function csvToJson(csvText) {
+            const lines = csvText.trim().split('\\n');
+            if (lines.length < 2) {
+                throw new Error("CSV data must have at least a header row and one data row.");
+            }
+
+            // Basic CSV field splitting (handles simple quotes, not escaped quotes within quotes)
+            const splitCsvLine = (line) => {
+                const result = [];
+                let currentField = '';
+                let inQuotes = false;
+                for (let i = 0; i < line.length; i++) {
+                    const char = line[i];
+                    if (char === '"') {
+                        inQuotes = !inQuotes;
+                    } else if (char === ',' && !inQuotes) {
+                        result.push(currentField.trim());
+                        currentField = '';
+                    } else {
+                        currentField += char;
+                    }
+                }
+                result.push(currentField.trim()); // Add the last field
+                return result;
+            };
+
+
+            const headers = splitCsvLine(lines[0]).map(h => h.trim());
+            const jsonData = [];
+
+            for (let i = 1; i < lines.length; i++) {
+                const values = splitCsvLine(lines[i]);
+                if (values.length !== headers.length) {
+                    console.warn(`Skipping row ${i + 1}: Number of values (${values.length}) does not match number of headers (${headers.length}). Line: ${lines[i]}`);
+                    continue; // Skip rows with mismatched column counts
+                }
+                const rowObject = {};
+                for (let j = 0; j < headers.length; j++) {
+                    let value = values[j].trim();
+                    // Attempt basic type conversion (number, boolean)
+                    if (!isNaN(value) && value !== '') {
+                        rowObject[headers[j]] = Number(value);
+                    } else if (value.toLowerCase() === 'true') {
+                        rowObject[headers[j]] = true;
+                    } else if (value.toLowerCase() === 'false') {
+                        rowObject[headers[j]] = false;
+                    } else {
+                         // Remove surrounding quotes if present after split
+                        if (value.startsWith('"') && value.endsWith('"')) {
+                           value = value.substring(1, value.length - 1);
+                        }
+                        rowObject[headers[j]] = value.replace(/""/g, '"'); // Handle escaped quotes
+                    }
+                }
+                jsonData.push(rowObject);
+            }
+            return jsonData;
+        }
+    </script>
+</body>
+</html>

@@ -6,7 +6,8 @@ sqlite_file = Path("schema_process.db")
 sqlite_url = f"sqlite:///{sqlite_file.absolute()}"
 
 # Create engine
-engine = create_engine(sqlite_url, echo=True)
+# Add connect_args to allow SQLite usage across threads (common requirement for async frameworks)
+engine = create_engine(sqlite_url, echo=True, connect_args={"check_same_thread": False})
 
 # Dependency for database session
 def get_session():

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Object</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <h1>Edit Object</h1>
+    <a href="/objects" style="color: #00aaff; display: block; margin-bottom: 15px;">&larr; Back to Object List</a>
+
+    <form id="edit-object-form">
+        <input type="hidden" id="object-id" name="object-id" value="{{ object.id }}"> <!-- Set object ID -->
+        <div>
+            <label for="name">Name:</label>
+            <input type="text" id="name" name="name" value="{{ object.name }}" required>
+        </div>
+        <div>
+            <label for="description">Description:</label>
+            <textarea id="description" name="description">{{ object.description or '' }}</textarea> <!-- Use 'or ''' for potentially None description -->
+        </div>
+        <div>
+            <label for="attributes">Attributes (JSON format):</label>
+            <textarea id="attributes" name="attributes" rows="5" placeholder='{"key1": "value1", "key2": 123}'>{{ object.attributes | tojson(indent=2) if object.attributes else '' }}</textarea> <!-- Convert dict to JSON string -->
+            <small>Enter attributes as a valid JSON object.</small>
+        </div>
+        <button type="submit">Update Object</button>
+    </form>
+    <div id="response-message"></div>
+    <!-- Removed loading message as data is pre-filled -->
+
+    <script src="/static/object_edit.js"></script>
+</body>
+</html>

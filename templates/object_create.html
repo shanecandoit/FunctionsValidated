@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Object</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <h1>Create New Object</h1>
+    <a href="/" style="color: #00aaff; display: block; margin-bottom: 15px;">&larr; Back to Home</a>
+    <form id="create-object-form">
+        <div>
+            <label for="name">Name:</label>
+            <input type="text" id="name" name="name" required>
+        </div>
+        <div>
+            <label for="description">Description:</label>
+            <textarea id="description" name="description"></textarea>
+        </div>
+        <div>
+            <label for="attributes">Attributes (JSON format):</label>
+            <textarea id="attributes" name="attributes" rows="5" placeholder='{"key1": "value1", "key2": 123}'></textarea>
+            <small>Enter attributes as a valid JSON object.</small>
+        </div>
+        <button type="submit">Create Object</button>
+    </form>
+    <div id="response-message"></div>
+
+    <script src="/static/script.js"></script> </body>
+</html>

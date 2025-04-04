@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tables List</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <h1>Tables</h1>
+    <a href="/" style="color: #00aaff; display: block; margin-bottom: 15px;">&larr; Back to Home</a>
+    <a href="/table/create" style="color: #4CAF50; display: block; margin-bottom: 15px;">+ Create New Table</a>
+
+    <div id="tables-list-container">
+        <p>Loading tables...</p>
+    </div>
+
+    <script>
+        async function fetchTables() {
+            const container = document.getElementById('tables-list-container');
+            try {
+                const response = await fetch('/api/v1/tables/');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const tables = await response.json();
+
+                if (tables.length === 0) {
+                    container.innerHTML = '<p>No tables found. <a href="/table/create">Create one?</a></p>';
+                    return;
+                }
+
+                let tableHTML = '<table><thead><tr><th>ID</th><th>Name</th><th>Description</th><th>Object ID</th><th>Rows</th><th>Actions</th></tr></thead><tbody>';
+                tables.forEach(table => {
+                    // Truncate description
+                    const shortDesc = table.description ? (table.description.length > 50 ? table.description.substring(0, 47) + '...' : table.description) : 'N/A';
+                    // Convert data to CSV preview
+                    const csvPreview = dataToCsvPreview(table.data, 3); // Show header + 2 data rows max
+
+                    tableHTML += `
+                        <tr>
+                            <td>${table.id}</td>
+                            <td>${table.name}</td>
+                            <td>${shortDesc}</td>
+                            <td>${table.object_id}</td>
+                            <td>${table.data.length} (<pre style="margin: 0; font-size: 0.8em; white-space: pre-wrap; word-break: break-all;">${csvPreview}</pre>)</td>
+                            <td>
+                                <a href="/table/edit/${table.id}" class="action-link edit-link">Edit</a>
+                                <button class="action-link delete-button" data-id="${table.id}" data-name="${table.name}">Delete</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+                tableHTML += '</tbody></table>';
+                container.innerHTML = tableHTML;
+
+                // Add event listeners for delete buttons
+                document.querySelectorAll('.delete-button').forEach(button => {
+                    button.addEventListener('click', handleDelete);
+                });
+
+            } catch (error) {
+                console.error('Error fetching tables:', error);
+                container.innerHTML = '<p style="color: red;">Error loading tables.</p>';
+            }
+        }
+
+        async function handleDelete(event) {
+            const button = event.target;
+            const tableId = button.getAttribute('data-id');
+            const tableName = button.getAttribute('data-name');
+
+            if (confirm(`Are you sure you want to delete the table "${tableName}" (ID: ${tableId})?`)) {
+                try {
+                    const response = await fetch(`/api/v1/tables/${tableId}`, {
+                        method: 'DELETE',
+                    });
+
+                    if (response.ok) {
+                        alert(`Table "${tableName}" deleted successfully.`);
+                        fetchTables(); // Refresh the list
+                    } else {
+                        const result = await response.json();
+                        alert(`Error deleting table: ${result.detail || response.statusText}`);
+                    }
+                } catch (error) {
+                    console.error('Error deleting table:', error);
+                    alert('An error occurred while deleting the table.');
+                }
+            }
+        }
+
+        // Function to convert array of objects to CSV preview string
+        function dataToCsvPreview(data, maxRows = 3) {
+            if (!data || data.length === 0) {
+                return "No data";
+            }
+            const headers = Object.keys(data[0]);
+            let csvString = headers.join(',') + '\\n'; // Header row
+
+            for (let i = 0; i < Math.min(data.length, maxRows -1); i++) {
+                const row = headers.map(header => {
+                    let value = data[i][header];
+                    // Basic CSV quoting/escaping for values containing commas or quotes
+                    if (typeof value === 'string' && (value.includes(',') || value.includes('"'))) {
+                        value = `"${value.replace(/"/g, '""')}"`;
+                    }
+                    return value;
+                });
+                csvString += row.join(',') + '\\n';
+            }
+
+             if (data.length > maxRows -1) {
+                 csvString += `... (${data.length} total rows)`;
+             }
+
+            return csvString.trim(); // Remove trailing newline
+        }
+
+        // Fetch tables when the page loads
+        fetchTables();
+    </script>
+</body>
+</html>

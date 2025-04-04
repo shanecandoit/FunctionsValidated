@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Table</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <h1>Edit Table</h1>
+    <a href="/tables" style="color: #00aaff; display: block; margin-bottom: 15px;">&larr; Back to Table List</a>
+
+    <form id="edit-table-form" data-table-id="{{ table.id }}"> <!-- Removed data-table-data -->
+        <input type="hidden" id="table-id" name="table-id"> <!-- Will be populated by JS -->
+        <div>
+            <label for="name">Table Name:</label>
+            <input type="text" id="name" name="name" required>
+        </div>
+        <div>
+            <label for="description">Description:</label>
+            <textarea id="description" name="description"></textarea>
+        </div>
+        <div>
+            <label for="object_id">Associated Object:</label>
+            <select id="object_id" name="object_id" required>
+                <option value="">-- Select an Object --</option>
+                <!-- Object options will be populated by the backend -->
+                {% for obj in objects %}
+                <option value="{{ obj.id }}">{{ obj.name }} (ID: {{ obj.id }})</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label for="data">Row Data (CSV format):</label>
+            <textarea id="data" name="data" rows="10" placeholder='col1,col2\nval1,1\nval2,2' required></textarea>
+            <small>Edit data as CSV text (first row is headers). It will be converted to JSON on submission.</small>
+        </div>
+        <button type="submit">Update Table</button>
+    </form>
+    <div id="response-message" style="margin-top: 15px;"></div>
+    <div id="loading-message">Loading table data...</div>
+
+    <!-- Embed JSON data safely in a script tag -->
+    <script type="application/json" id="table-data-json">
+        {{ table_json | tojson | safe }}
+    </script>
+
+    <script>
+        const form = document.getElementById('edit-table-form');
+        const tableId = parseInt(form.dataset.tableId, 10); // Read ID from data attribute
+        const nameInput = document.getElementById('name');
+        const descriptionInput = document.getElementById('description');
+        const objectIdSelect = document.getElementById('object_id');
+        const dataTextarea = document.getElementById('data');
+        const tableIdInput = document.getElementById('table-id'); // Keep this for the hidden input if needed, or remove if ID is only read from data-*
+        const responseMessageDiv = document.getElementById('response-message');
+        const loadingMessageDiv = document.getElementById('loading-message');
+
+        // Pre-populate the form with data passed from the backend
+        function populateForm() {
+            const jsonDataElement = document.getElementById('table-data-json');
+            const tableData = JSON.parse(jsonDataElement.textContent); // Read and parse data from script tag
+
+            tableIdInput.value = tableData.id;
+            nameInput.value = tableData.name;
+            descriptionInput.value = tableData.description || '';
+            objectIdSelect.value = tableData.object_id;
+            // Convert JSON data to CSV for display
+            dataTextarea.value = jsonToCsv(tableData.data);
+
+            loadingMessageDiv.style.display = 'none'; // Hide loading message
+        }
+
+        form.addEventListener('submit', async function(event) {
+            event.preventDefault();
+
+            responseMessageDiv.textContent = 'Updating...';
+            responseMessageDiv.style.color = 'black';
+
+            let dataValue;
+            try {
+                // Parse the CSV data from the textarea back to JSON
+                dataValue = csvToJson(dataTextarea.value);
+                 if (!Array.isArray(dataValue)) { // csvToJson should always return array or throw
+                    throw new Error("CSV parsing resulted in non-array data.");
+                }
+            } catch (error) {
+                responseMessageDiv.textContent = 'Error: Invalid CSV format for Row Data. ' + error.message;
+                responseMessageDiv.style.color = 'red';
+                return;
+            }
+
+            const payload = {
+                id: tableId, // Include ID for PUT request
+                name: nameInput.value,
+                description: descriptionInput.value,
+                object_id: parseInt(objectIdSelect.value, 10),
+                data: dataValue
+                // created_at and updated_at are handled by the model/backend
+            };
+
+            try {
+                const response = await fetch(`/api/v1/tables/${tableId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(payload),
+                });
+
+                const result = await response.json();
+
+                if (response.ok) {
+                    responseMessageDiv.textContent = `Table "${result.name}" updated successfully!`;
+                    responseMessageDiv.style.color = 'green';
+                    // Optionally redirect or update UI further
+                } else {
+                    responseMessageDiv.textContent = `Error: ${result.detail || response.statusText}`;
+                    responseMessageDiv.style.color = 'red';
+                }
+            } catch (error) {
+                console.error('Error submitting form:', error);
+                responseMessageDiv.textContent = 'An error occurred while submitting the form.';
+                responseMessageDiv.style.color = 'red';
+            }
+        });
+
+        // Populate the form when the script loads
+        populateForm();
+
+        // --- Helper Functions ---
+
+        // Converts array of objects to CSV string
+        function jsonToCsv(jsonData) {
+            if (!jsonData || jsonData.length === 0) {
+                return "";
+            }
+            const headers = Object.keys(jsonData[0]);
+            // Use actual newline character \n
+            let csvString = headers.join(',') + '\n'; // Header row
+
+            jsonData.forEach(row => {
+                const values = headers.map(header => {
+                    let value = row[header];
+                    // Basic CSV quoting/escaping for commas, quotes, and actual newlines
+                    if (typeof value === 'string' && (value.includes(',') || value.includes('"') || value.includes('\n'))) {
+                        value = `"${value.replace(/"/g, '""')}"`; // Escape quotes
+                    }
+                    return value;
+                });
+                // Use actual newline character \n
+                csvString += values.join(',') + '\n';
+            });
+            // Return without trim() to preserve final newline if present
+            return csvString;
+        }
+
+        // Simple CSV to JSON Array converter (from create form)
+        function csvToJson(csvText) {
+            // Split on actual newlines (\n or \r\n)
+            const lines = csvText.trim().split(/\r?\n/);
+            if (lines.length === 0 || (lines.length === 1 && lines[0].trim() === '')) {
+                return []; // Handle empty input gracefully
+            }
+             if (lines.length < 2) {
+                 // Allow header-only CSV, results in empty JSON array
+                 if (lines.length === 1 && lines[0].trim() !== '') {
+                     return [];
+                 }
+                throw new Error("CSV data must have at least a header row.");
+            }
+
+            const splitCsvLine = (line) => {
+                const result = [];
+                let currentField = '';
+                let inQuotes = false;
+                for (let i = 0; i < line.length; i++) {
+                    const char = line[i];
+                    if (char === '"' && (i === 0 || line[i-1] !== '\\\\')) { // Handle quote toggle, ignore escaped quotes
+                        // Check for escaped quote ("") inside quoted field
+                         if (inQuotes && i + 1 < line.length && line[i+1] === '"') {
+                             currentField += '"';
+                             i++; // Skip the second quote
+                             continue;
+                         }
+                        inQuotes = !inQuotes;
+                    } else if (char === ',' && !inQuotes) {
+                        result.push(currentField); // Keep surrounding whitespace for now
+                        currentField = '';
+                    } else {
+                        currentField += char;
+                    }
+                }
+                result.push(currentField); // Add the last field
+                 // Trim whitespace and remove surrounding quotes only after splitting
+                return result.map(field => {
+                    field = field.trim();
+                    if (field.startsWith('"') && field.endsWith('"')) {
+                        return field.substring(1, field.length - 1).replace(/""/g, '"');
+                    }
+                    return field;
+                });
+            };
+
+
+            const headers = splitCsvLine(lines[0]);
+            const jsonData = [];
+
+            for (let i = 1; i < lines.length; i++) {
+                 if (lines[i].trim() === '') continue; // Skip empty lines
+                const values = splitCsvLine(lines[i]);
+                if (values.length !== headers.length) {
+                    console.warn(`Skipping row ${i + 1}: Number of values (${values.length}) does not match number of headers (${headers.length}). Line: ${lines[i]}`);
+                    continue;
+                }
+                const rowObject = {};
+                for (let j = 0; j < headers.length; j++) {
+                    let value = values[j];
+                    // Attempt basic type conversion (number, boolean, null)
+                    if (!isNaN(value) && value.trim() !== '') {
+                        rowObject[headers[j]] = Number(value);
+                    } else if (value.toLowerCase() === 'true') {
+                        rowObject[headers[j]] = true;
+                    } else if (value.toLowerCase() === 'false') {
+                        rowObject[headers[j]] = false;
+                    } else if (value.toLowerCase() === 'null' || value === '') {
+                         rowObject[headers[j]] = null;
+                    }
+                     else {
+                        rowObject[headers[j]] = value; // Keep as string
+                    }
+                }
+                jsonData.push(rowObject);
+            }
+            return jsonData;
+        }
+
+    </script>
+</body>
+</html>
