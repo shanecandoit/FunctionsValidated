@@ -1,0 +1,6 @@
+
+# Ignore all files in the .venv directory
+.venv/
+
+# Ignore pycache dirs
+__pycache__
